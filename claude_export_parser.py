@@ -261,6 +261,32 @@ class ConversationParser:
             filepath.write_text(artifact.content, encoding='utf-8')
             print(f"Exported artifact: {filepath}")
     
+    def _sanitize_filename(self, filename: str, fallback_ext: str = 'txt') -> str:
+        """Sanitize filename to remove invalid characters and enforce reasonable length."""
+        # Remove or replace invalid characters
+        # Keep only alphanumeric, dots, dashes, underscores
+        sanitized = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+        
+        # Remove leading/trailing dots, dashes, underscores
+        sanitized = sanitized.strip('._-')
+        
+        # Ensure it's not empty
+        if not sanitized:
+            sanitized = f'untitled.{fallback_ext}'
+        
+        # Ensure it has an extension
+        if '.' not in sanitized:
+            sanitized = f'{sanitized}.{fallback_ext}'
+        
+        # Limit length (keep extension)
+        if len(sanitized) > 100:
+            parts = sanitized.rsplit('.', 1)
+            name = parts[0][:95]
+            ext = parts[1] if len(parts) > 1 else fallback_ext
+            sanitized = f'{name}.{ext}'
+        
+        return sanitized
+    
     def export_scripts(self, scripts_dir: str | Path) -> None:
         """Export code blocks to scripts directory."""
         scripts_dir = Path(scripts_dir)
@@ -269,7 +295,9 @@ class ConversationParser:
         for i, code_block in enumerate(self.code_blocks):
             # Determine filename
             if code_block.filename:
-                filename = code_block.filename
+                # Sanitize the provided filename
+                ext = self._get_extension(code_block.language)
+                filename = self._sanitize_filename(code_block.filename, ext)
             else:
                 # Use language-based naming
                 ext = self._get_extension(code_block.language)
